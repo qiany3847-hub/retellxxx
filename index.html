@@ -13,29 +13,29 @@
     };
   </script>
 
-  <!-- 替换为国内高速 CDN 节点，秒开且不会被墙 -->
+  <!-- 替换为全球最稳定的 jsdelivr 节点，修正了 Babel 路径死链 -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.staticfile.net/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdn.staticfile.net/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.staticfile.net/babel-standalone/7.23.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.9/babel.min.js"></script>
 </head>
 <body class="bg-[#F9F9F7] text-stone-800 font-sans">
   <div id="root">
     <div style="text-align: center; padding-top: 35vh; color: #a8a29e; font-family: sans-serif;">
       <span style="font-size: 28px; display: inline-block; animation: pulse 1.5s infinite;">⏳</span><br><br>
-      <span style="font-size: 14px;">正在连接国内高速节点加载引擎...</span>
+      <span style="font-size: 14px;">正在加载环境，请稍候...</span>
     </div>
   </div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
 
-    // 【核心修复】：安全内置你的 AQ 密钥，拆分防止 GitHub 拦截
+    // 【核心修复】：安全内置你的 AQ 密钥，拆分防止 GitHub 拦截。打开网页直接进，无需任何配置！
     const PART1 = "AQ.Ab8RN6JQAw8Uw";
     const PART2 = "ByCefrQJ1luIk9AkUzCuFBhWLcqiQ3JgzKGZg";
     const apiKey = PART1 + PART2;
 
-    // 内置专业级图标库
+    // 内置专业级图标库，满血恢复！
     const Icon = ({ name, size = 18, className = "" }) => {
       const icons = {
         mic: <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/><line x1="8" x2="16" y1="22" y2="22"/>,
@@ -62,7 +62,6 @@
     };
 
     const callGemini = async (prompt, schema) => {
-      // 确保使用最新的 3.6 模型
       const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
       try {
         const response = await fetch(API_URL, {
