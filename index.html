@@ -23,7 +23,7 @@
   <div id="root">
     <div style="text-align: center; padding-top: 35vh; color: #a8a29e; font-family: sans-serif;">
       <span style="font-size: 28px; display: inline-block; animation: pulse 1.5s infinite;">⏳</span><br><br>
-      <span style="font-size: 14px;">正在加载引擎...</span>
+      <span style="font-size: 14px;">正在连接国内高速节点加载引擎...</span>
     </div>
   </div>
 
@@ -62,6 +62,7 @@
     };
 
     const callGemini = async (prompt, schema) => {
+      // 确保使用最新的 3.6 模型
       const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
       try {
         const response = await fetch(API_URL, {
@@ -69,7 +70,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            systemInstruction: { parts: [{ text: "你是一个专业的英语口语教练。请严格按照要求的JSON格式输出结果。纯中文回复，除明确要求外绝对不要使用 ** 符号。" }] },
+            systemInstruction: { parts: [{ text: "你是一个专业的英语口语教练。请严格按照要求的JSON格式输出结果。纯中文回复，除明确要求加粗的成分外，绝对不要使用 ** 或星号等标记。" }] },
             generationConfig: { responseMimeType: "application/json", responseSchema: schema }
           })
         });
@@ -105,7 +106,8 @@
 
     const callGeminiTTS = async (text) => {
       if (!text) return;
-      const cleanText = text.replace(/\*\*/g, '');
+      // 强制清洗所有星号，防止语音引擎读出 "asterisk"
+      const cleanText = text.replace(/[*＊_]/g, '');
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -376,19 +378,41 @@
       const handleAnalyze = async () => {
         if (!originalText.trim() || !retellText.trim()) return;
         setIsAnalyzing(true); setAnalysisResult(null);
-        const prompt = `原文：${originalText}\n用户复述：${retellText}\n任务：严格按要求输出 JSON进行语法订正和表达升级...`;
+        
+        // 彻底还原了极其严谨完整的 AI 提示词指令
+        const fullPrompt = `
+          原文：${originalText}
+          用户复述：${retellText}
+          
+          任务：对比原文和用户的复述，严格按要求输出 JSON：
+          1. grammar: 找出用户复述中的语法错误。
+             - original: 包含该错误的【完整原句】（必须提取整个句子）。
+             - corrected: 订正后的【完整正确句子】。请使用 ** 来包裹被修改或订正的核心成分（如 "I **went** to the store."）。
+             - explanation: 语法说明。
+             - type: 错误的极其笼统的大类（仅限以下几个大类之一：时态、词性、单复数、介词、代词、语序、搭配、其他）。
+          2. missing: 原文中存在但用户复述完全遗漏的核心信息点（字符串数组）。
+          3. upgrades: 找出用户复述中偏简单/中式的表达，给出更地道的说法。
+             - original_simple_sentence: 用户原表达所在的【完整原句或分句】。注意：请必须先修正该句中的基础语法错误，然后再输出。请使用 **包裹原本简单的核心成分**。
+             - better_expression_sentence: 包含地道表达的【完整句子】。请【仅】使用 ** 包裹更地道的核心成分，【绝对不要】把整句话都加粗。
+             - base_phrase: 将上述升级的核心成分提炼为【无时态变形的原形短语】，例如 get lost, step out of comfort zone。
+             - ai_example: 必须包含中英对照！(en 为纯英文，zh 为纯中文，绝对不允许在这个对象中使用 ** 加粗符号)
+             - source: 如果原文有对应表达填 "原文表达"，AI自己发挥填 "AI 升级"。
+          4. final_polished_text: 【核心要求】这必须是在【用户原本的复述】基础上进行的润色和修改，绝对【不是】照搬原故事。保留用户原本表达合理的句子结构，仅把前面指出的语法错误订正和表达升级缝合进去，形成一段连贯的英文段落。被你修改过的成分（语法或词汇）请严格使用 ** 包裹高亮，用户原本说得好的地方保留普通文本。
+        `;
+
         const schema = {
           type: "OBJECT",
           properties: {
             grammar: { type: "ARRAY", items: { type: "OBJECT", properties: { original: { type: "STRING" }, corrected: { type: "STRING" }, explanation: { type: "STRING" }, type: { type: "STRING" } } } },
-            missing: { type: "ARRAY", items: { type: "STRING" } },
+            missing: { type: "ARRAY", items: { type: "STRING" } }, // 修复：确保 Schema 里有遗漏点数组
             upgrades: { type: "ARRAY", items: { type: "OBJECT", properties: { original_simple_sentence: { type: "STRING" }, better_expression_sentence: { type: "STRING" }, base_phrase: { type: "STRING" }, ai_example: { type: "OBJECT", properties: { en: { type: "STRING" }, zh: { type: "STRING" } } }, source: { type: "STRING" } } } },
             final_polished_text: { type: "STRING" }
           },
           required: ["grammar", "missing", "upgrades", "final_polished_text"]
         };
+
         try {
-          const result = await callGemini(prompt, schema);
+          const result = await callGemini(fullPrompt, schema);
           setAnalysisResult(result);
           
           setDbStats(prev => ({ ...prev, practiceCount: (prev.practiceCount || 0) + 1 }));
@@ -529,6 +553,18 @@
                     </div>
                   )}
                 </div>
+
+                {/* 彻底恢复上次遗漏的“遗漏信息点”分析模块 */}
+                {analysisResult.missing && analysisResult.missing.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-1.5 h-6 bg-amber-400"></span>遗漏信息点</h2>
+                    <ul className="list-disc list-outside ml-5 space-y-2 text-stone-700 bg-amber-50/50 p-4 rounded-sm border border-amber-100">
+                      {analysisResult.missing.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div>
                   <h2 className="text-xl font-serif font-bold mb-6 flex items-center gap-2"><span className="w-1.5 h-6 bg-emerald-500"></span>表达升级</h2>
